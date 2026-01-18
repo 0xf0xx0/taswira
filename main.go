@@ -38,7 +38,7 @@ type errorResponse struct {
 	Message string `json:"error"`
 }
 
-const version = "0.0.1"
+const version = "1.0.0"
 
 var (
 	USER_AGENT  = fmt.Sprintf("taswira/v%s", version) /// TODO: finish name
