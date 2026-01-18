@@ -1,4 +1,4 @@
-image host authed by forgejo
+taswira: image host authed by forgejo
 
 ## setup
 - MUST be run behind a reverse proxy, it depends on one to serve the images and for X-Forwarded-Host/Host and X-Forwarded-Proto

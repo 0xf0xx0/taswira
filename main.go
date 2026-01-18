@@ -41,7 +41,7 @@ type errorResponse struct {
 const version = "0.0.1"
 
 var (
-	USER_AGENT  = fmt.Sprintf("forg/v%s", version) /// TODO: finish name
+	USER_AGENT  = fmt.Sprintf("taswira/v%s", version) /// TODO: finish name
 	INSTANCE    = os.Getenv("INSTANCE")
 	IMG_ROOT    = os.Getenv("IMG_ROOT")
 	imgroot     *os.Root
