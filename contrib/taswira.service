@@ -2,6 +2,8 @@
 Description=taswira: image host authed by forgejo
 
 [Service]
+# for nginx
+Group=www-data
 # /var/lib/taswira
 StateDirectory=taswira
 StateDirectoryMode=0750

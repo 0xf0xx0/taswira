@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -208,19 +207,8 @@ func postHandler(urlPfx string, r *http.Request, username string, w http.Respons
 		return false
 	}
 
-	nrgbaImg, ok := decodedImg.(*image.NRGBA)
-	if !ok {
-		err := errors.New(fmt.Sprintf("error decoding image from %s: %s\n", username, err))
-		log.Println(err)
-		e := &errorResponse{
-			Message: fmt.Sprintf("error decoding image: %s", err),
-		}
-		writeError(e, w, http.StatusUnprocessableEntity)
-		return false
-	}
-
 	encodedImg := bytes.NewBuffer(make([]byte, 0, len(uploadBody)))
-	err = png.Encode(encodedImg, nrgbaImg)
+	err = png.Encode(encodedImg, decodedImg)
 	if err != nil {
 		log.Printf("error encoding image from %s: %s\n", username, err)
 		e := &errorResponse{
