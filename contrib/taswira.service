@@ -1,0 +1,42 @@
+[Unit]
+Description=taswira: image host authed by forgejo
+
+[Service]
+# /var/lib/taswira
+StateDirectory=taswira
+StateDirectoryMode=0750
+
+Environment=INSTANCE=https://your.git.instance.example.com
+Environment=IMG_ROOT=/var/lib/taswira
+Environment=SUBPATH=
+ExecStart=/usr/bin/taswira
+Restart=on-failure
+
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=tmpfs
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+NoNewPrivileges=true
+MemoryDenyWriteExecute=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectProc=invisible
+ProcSubset=pid
+PrivateMounts=true
+PrivateUsers=true
+RemoveIPC=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+IPAddressAllow=127.0.0.1/32 ::1/128
+IPAddressDeny=any
+
+[Install]
+WantedBy=multi-user.target

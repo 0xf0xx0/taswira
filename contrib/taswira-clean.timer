@@ -1,0 +1,9 @@
+[Unit]
+Description=delete old taswira uploads
+
+[Timer]
+# https://www.freedesktop.org/software/systemd/man/systemd.time.html#Calendar%20Events
+OnCalendar=daily
+
+[Install]
+WantedBy=multi-user.target

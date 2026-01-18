@@ -1,0 +1,10 @@
+[Unit]
+Description=delete old taswira uploads
+
+[Service]
+# /var/lib/taswira
+StateDirectory=taswira
+StateDirectoryMode=0750
+
+# delete images older than 30 days
+ExecStart=/bin/find /var/lib/taswira -daystart -mtime 30 -name '*.png'
