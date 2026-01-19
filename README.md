@@ -68,6 +68,6 @@ curl -X DELETE -u forgejo_user:forgejo_user_token https://example.com/up?hash=47
 
 # todo
 
-- make client helper script (ew bash wehhh)
+- make client helper script better (ew bash wehhh)
 - temporary uploads (?expiry=<uint>)
 - named aliases? (?alias=<string>)

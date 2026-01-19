@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+#taswira-upload example.com/up user tokentoken ./image.png
+
+endpoint="$1"
+user="$2"
+token="$3"
+file="$4"
+
+curl --location -Ss -X POST -u "$user:$token" "https://$endpoint" --data-binary @"$file"
