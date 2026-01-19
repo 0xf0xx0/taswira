@@ -45,6 +45,7 @@ type response struct {
 }
 type errorResponse struct {
 	Message string `json:"error"`
+	Url     string `json:"url,omitempty"`
 }
 
 const version = "1.0.0"
@@ -227,6 +228,7 @@ func postHandler(urlPfx string, r *http.Request, username string, w http.Respons
 	if checkIfImageExists(filename) {
 		e := &errorResponse{
 			Message: "duplicate image",
+			Url:     url,
 		}
 		writeError(e, w, http.StatusConflict)
 		return false
@@ -250,6 +252,7 @@ func postHandler(urlPfx string, r *http.Request, username string, w http.Respons
 	if checkIfImageExists(filename) {
 		e := &errorResponse{
 			Message: "duplicate image",
+			Url:     url,
 		}
 		writeError(e, w, http.StatusConflict)
 		return false
