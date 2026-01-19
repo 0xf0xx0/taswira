@@ -11,7 +11,7 @@ taswira: tiny image host authed by forgejo
 ## setup
 
 - MUST be run behind a reverse proxy, it depends on one to serve the images and for X-Forwarded-Host/Host and X-Forwarded-Proto
-- IMG_ROOT must exist before running, this wont make dirs
+- `IMG_ROOT` must exist before running, this wont make dirs
 
 ### environment variables
 
@@ -36,7 +36,7 @@ export SUBPATH="images"
 https://example.com
 /
 ├── images # images served here by reverse proxy
-└── up # endpoint served here
+└── up # taswira served here
 ```
 
 ## usage

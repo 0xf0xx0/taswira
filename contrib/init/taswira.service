@@ -8,9 +8,10 @@ Group=www-data
 StateDirectory=taswira
 StateDirectoryMode=0750
 
+# update INSTANCE and SUBPATH with your forgejo instance and subpath
 Environment=INSTANCE=https://your.git.instance.example.com
-Environment=IMG_ROOT=/var/lib/taswira
 Environment=SUBPATH=
+Environment=IMG_ROOT=/var/lib/taswira
 ExecStart=/usr/bin/taswira
 Restart=on-failure
 
