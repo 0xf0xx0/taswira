@@ -1,3 +1,13 @@
+/*
+taswira: tiny image host authed by forgejo
+
+env vars:
+
+	INSTANCE="https://example.com" # Forgejo instance to use for auth, without trailing slash
+	IMG_ROOT="/path/to/image/dir" # dir to write images to, defaults to <process cwd>/img
+	SUBPATH="foo/bar/baz" # reverse proxy subpath, without trailing slash
+	PORT="6969" # listening port, default 6969
+*/
 package main
 
 import (
@@ -79,6 +89,15 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	res, err := http.Get(INSTANCE+"/api/v1/version")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if res.StatusCode != http.StatusOK {
+		log.Fatalf("error from backend forgejo: %s\n", res.Status)
+	}
+
 	http.HandleFunc("/", mainHandler)
 
 	go func() {

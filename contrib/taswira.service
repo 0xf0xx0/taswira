@@ -1,5 +1,5 @@
 [Unit]
-Description=taswira: image host authed by forgejo
+Description=taswira: tiny image host authed by forgejo
 
 [Service]
 # for nginx
