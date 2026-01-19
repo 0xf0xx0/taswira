@@ -50,11 +50,16 @@ type errorResponse struct {
 const version = "1.0.0"
 
 var (
-	USER_AGENT  = fmt.Sprintf("taswira/v%s", version) /// TODO: finish name
-	INSTANCE    = os.Getenv("INSTANCE")
-	IMG_ROOT    = os.Getenv("IMG_ROOT")
-	imgroot     *os.Root
-	SUBPATH     = os.Getenv("SUBPATH")
+	USER_AGENT = fmt.Sprintf("taswira/v%s", version)
+	INSTANCE   = os.Getenv("INSTANCE")
+	SUBPATH    = os.Getenv("SUBPATH")
+	IMG_ROOT   = func() string {
+		env := os.Getenv("IMG_ROOT")
+		if env == "" {
+			env = "./img"
+		}
+		return env
+	}()
 	LISTEN_PORT = func() int {
 		env := os.Getenv("LISTEN_PORT")
 		if env == "" {
@@ -69,6 +74,7 @@ var (
 		/// config your shit right lmao
 		return int(uint16(i))
 	}()
+	imgroot *os.Root
 )
 
 func main() {
@@ -82,15 +88,12 @@ func main() {
 	if SUBPATH != "" {
 		SUBPATH += "/"
 	}
-	if IMG_ROOT == "" {
-		IMG_ROOT = "./img"
-	}
 	imgroot, err = os.OpenRoot(IMG_ROOT)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	res, err := http.Get(INSTANCE+"/api/v1/version")
+	res, err := http.Get(INSTANCE + "/api/v1/version")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -109,9 +112,9 @@ func main() {
 	<-sigs
 }
 
-func authUser(instance, token, username string, w http.ResponseWriter) (*forgejoUserResponse, bool) {
+func authUser(username, token string, w http.ResponseWriter) (*forgejoUserResponse, bool) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", instance+"/api/v1/user", nil)
+	req, _ := http.NewRequest("GET", INSTANCE+"/api/v1/user", nil)
 	req.Header.Add("Authorization", "token "+token)
 	req.Header.Add("User-Agent", USER_AGENT)
 
@@ -139,7 +142,8 @@ func authUser(instance, token, username string, w http.ResponseWriter) (*forgejo
 
 // handles auth and delegates to method handlers
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	setHeaders(w)
+	w.Header()["Date"] = nil
+	w.Header().Set("Content-Type", "application/json")
 
 	scheme := r.Header.Get("X-Forwarded-Proto")
 	host := r.Header.Get("X-Forwarded-Host")
@@ -154,7 +158,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	urlPfx := fmt.Sprintf("%s://%s/%s", scheme, host, SUBPATH)
 
-	var handler func(urlPfx string, r *http.Request, username string, w http.ResponseWriter) bool
+	var handler func(urlPfx string, r *http.Request, username string, w http.ResponseWriter) (ok bool)
 	switch r.Method {
 	case "POST":
 		handler = postHandler
@@ -169,7 +173,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	forgejoRes, ok := authUser(INSTANCE, token, username, w)
+	forgejoRes, ok := authUser(username, token, w)
 	if !ok {
 		return
 	}
@@ -181,8 +185,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Add("Server", USER_AGENT)
-	ok = handler(urlPfx, r, username, w)
-	if !ok {
+
+	if !handler(urlPfx, r, username, w) {
 		return
 	}
 }
@@ -300,11 +304,6 @@ func deleteHandler(_ string, r *http.Request, username string, w http.ResponseWr
 	}
 	writeResponse(m, w)
 	return true
-}
-
-func setHeaders(w http.ResponseWriter) {
-	w.Header()["Date"] = nil
-	w.Header().Set("Content-Type", "application/json")
 }
 
 func checkIfImageExists(path string) bool {

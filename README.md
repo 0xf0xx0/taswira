@@ -33,6 +33,9 @@ curl -X POST --data-binary @/path/to/image.jpg -u forgejo_user:user_token https:
 - simple `{message: string, url:string?}` object response
 - error is `{error: string}`
 
+# known quirks
+- any user can delete any image if they know the hash (wontfix, im lazy)
+
 # todo
 - temporary uploads (?expiry=<uint>)
 - named aliases? (?alias=<string>)
