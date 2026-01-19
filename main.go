@@ -88,11 +88,13 @@ func main() {
 	if SUBPATH != "" {
 		SUBPATH += "/"
 	}
+
 	imgroot, err = os.OpenRoot(IMG_ROOT)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	/// poke the instance to ensure its online
 	res, err := http.Get(INSTANCE + "/api/v1/version")
 	if err != nil {
 		log.Fatalln(err)
