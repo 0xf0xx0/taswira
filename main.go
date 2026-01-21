@@ -128,9 +128,8 @@ func authUser(username, token string, w http.ResponseWriter) (*forgejoUserRespon
 		return nil, false
 	}
 	if res.StatusCode != http.StatusOK {
-		println(username, token)
 		w.Write([]byte{})
-		log.Fatalf("error verifying user: %s", res.Status)
+		log.Printf("error verifying user: %s", res.Status)
 		return nil, false
 	}
 	body, _ := io.ReadAll(res.Body)
