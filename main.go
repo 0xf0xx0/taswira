@@ -137,7 +137,8 @@ func authUser(username, token string, w http.ResponseWriter) (ok bool) {
 	body, _ := io.ReadAll(res.Body)
 	b := &forgejoUserResponse{}
 	if json.Unmarshal(body, b) != nil {
-		log.Fatalln(err)
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte{})
 		return false
 	}
@@ -161,11 +162,13 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if host == "" {
 		host = r.Header.Get("Host")
 	}
-	if scheme == "" {
-		log.Fatal("X-Forwarded-Proto header not set")
-	}
 	if host == "" {
-		log.Fatal("X-Forwarded-Host or Host header not set")
+		log.Print("X-Forwarded-Host or Host header not set")
+		return
+	}
+	if scheme == "" {
+		log.Print("X-Forwarded-Proto header not set")
+		return
 	}
 
 	urlPfx := fmt.Sprintf("%s://%s/%s", scheme, host, SUBPATH)
