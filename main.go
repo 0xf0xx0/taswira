@@ -75,7 +75,7 @@ var (
 		/// config your shit right lmao
 		return int(uint16(i))
 	}()
-	imgroot *os.Root
+	imgroot        *os.Root
 	authHttpClient = &http.Client{}
 )
 
@@ -124,6 +124,7 @@ func authUser(username, token string, w http.ResponseWriter) (ok bool) {
 	res, err := authHttpClient.Do(req)
 	if err != nil {
 		log.Printf("error sending auth request: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte{})
 		return false
 	}
@@ -168,7 +169,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlPfx := fmt.Sprintf("%s://%s/%s", scheme, host, SUBPATH)
-	var handler func(urlPfx string, r *http.Request, username string, w http.ResponseWriter) (ok bool)
+	var handler func(urlPfx, username string, r *http.Request, w http.ResponseWriter) (ok bool)
 
 	switch r.Method {
 	case "POST":
@@ -190,12 +191,12 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Server", USER_AGENT)
 
-	if !handler(urlPfx, r, username, w) {
+	if !handler(urlPfx, username, r, w) {
 		return
 	}
 }
 
-func postHandler(urlPfx string, r *http.Request, username string, w http.ResponseWriter) bool {
+func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter) bool {
 	uploadBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error reading image from %s: %s\n", username, err)
@@ -262,10 +263,10 @@ func postHandler(urlPfx string, r *http.Request, username string, w http.Respons
 	/// write
 	out, err := imgroot.Create(filename)
 	if err != nil {
-		e := &errorResponse{
-			Message: fmt.Sprintf("error writing %s", filename),
-		}
 		log.Printf("error creating image file for %s: %s\n", username, err)
+		e := &errorResponse{
+			Message: fmt.Sprintf("error creating %s", filename),
+		}
 		writeError(e, w, http.StatusInternalServerError)
 		return false
 	}
@@ -287,7 +288,7 @@ func postHandler(urlPfx string, r *http.Request, username string, w http.Respons
 	writeResponse(m, w)
 	return true
 }
-func deleteHandler(_ string, r *http.Request, username string, w http.ResponseWriter) bool {
+func deleteHandler(_, username string, r *http.Request, w http.ResponseWriter) bool {
 	deletehash := r.URL.Query().Get("hash")
 	if deletehash == "" {
 		e := &errorResponse{
@@ -307,8 +308,9 @@ func deleteHandler(_ string, r *http.Request, username string, w http.ResponseWr
 	}
 
 	if err := imgroot.Remove(fileToDelete); err != nil {
+		log.Printf("error deleting %s: %s", fileToDelete, err)
 		e := &errorResponse{
-			Message: fmt.Sprintf("error deleting %s: %s", fileToDelete, err),
+			Message: fmt.Sprintf("error deleting %s", fileToDelete),
 		}
 		writeError(e, w, http.StatusInternalServerError)
 		return false
