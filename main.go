@@ -76,6 +76,7 @@ var (
 		return int(uint16(i))
 	}()
 	imgroot *os.Root
+	authHttpClient = &http.Client{}
 )
 
 func main() {
@@ -115,31 +116,38 @@ func main() {
 	<-sigs
 }
 
-func authUser(username, token string, w http.ResponseWriter) (*forgejoUserResponse, bool) {
-	client := &http.Client{}
+func authUser(username, token string, w http.ResponseWriter) (ok bool) {
 	req, _ := http.NewRequest("GET", INSTANCE+"/api/v1/user", nil)
 	req.Header.Add("Authorization", "token "+token)
 	req.Header.Add("User-Agent", USER_AGENT)
 
-	res, err := client.Do(req)
+	res, err := authHttpClient.Do(req)
 	if err != nil {
-		log.Fatalln(err)
+		log.Printf("error sending auth request: %s", err)
 		w.Write([]byte{})
-		return nil, false
+		return false
 	}
 	if res.StatusCode != http.StatusOK {
+		log.Printf("error verifying user %s: %s", username, res.Status)
+		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte{})
-		log.Printf("error verifying user: %s", res.Status)
-		return nil, false
+		return false
 	}
 	body, _ := io.ReadAll(res.Body)
 	b := &forgejoUserResponse{}
 	if json.Unmarshal(body, b) != nil {
 		log.Fatalln(err)
 		w.Write([]byte{})
-		return nil, false
+		return false
 	}
-	return b, true
+
+	if username != b.Login || b.ProhibitLogin || b.Restricted || !b.Active {
+		log.Printf("%s failed login\n", username)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte{})
+		return false
+	}
+	return true
 }
 
 // handles auth and delegates to method handlers
@@ -175,15 +183,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	forgejoRes, ok := authUser(username, token, w)
-	if !ok {
-		return
-	}
-
-	if username != forgejoRes.Login || forgejoRes.ProhibitLogin || forgejoRes.Restricted || !forgejoRes.Active {
-		log.Printf("failed login: %s\n", username)
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte{})
+	if !authUser(username, token, w) {
 		return
 	}
 	w.Header().Add("Server", USER_AGENT)
