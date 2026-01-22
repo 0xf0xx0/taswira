@@ -166,9 +166,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if host == "" {
 		log.Fatal("X-Forwarded-Host or Host header not set")
 	}
-	urlPfx := fmt.Sprintf("%s://%s/%s", scheme, host, SUBPATH)
 
+	urlPfx := fmt.Sprintf("%s://%s/%s", scheme, host, SUBPATH)
 	var handler func(urlPfx string, r *http.Request, username string, w http.ResponseWriter) (ok bool)
+
 	switch r.Method {
 	case "POST":
 		handler = postHandler
@@ -186,6 +187,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if !authUser(username, token, w) {
 		return
 	}
+
 	w.Header().Add("Server", USER_AGENT)
 
 	if !handler(urlPfx, r, username, w) {
@@ -287,26 +289,37 @@ func postHandler(urlPfx string, r *http.Request, username string, w http.Respons
 }
 func deleteHandler(_ string, r *http.Request, username string, w http.ResponseWriter) bool {
 	deletehash := r.URL.Query().Get("hash")
-	filename := deletehash + ".png"
-	if !checkIfImageExists(filename) {
+	if deletehash == "" {
 		e := &errorResponse{
-			Message: fmt.Sprintf("nonexistent image: %s", filename),
+			Message: "no image hash given",
+		}
+		writeError(e, w, http.StatusBadRequest)
+		return false
+	}
+
+	fileToDelete := deletehash + ".png"
+	if !checkIfImageExists(fileToDelete) {
+		e := &errorResponse{
+			Message: fmt.Sprintf("nonexistent image: %s", fileToDelete),
 		}
 		writeError(e, w, http.StatusNotFound)
 		return false
 	}
-	if err := imgroot.Remove(filename); err != nil {
+
+	if err := imgroot.Remove(fileToDelete); err != nil {
 		e := &errorResponse{
-			Message: fmt.Sprintf("error deleting %s: %s", filename, err),
+			Message: fmt.Sprintf("error deleting %s: %s", fileToDelete, err),
 		}
-		writeError(e, w, http.StatusNotFound)
+		writeError(e, w, http.StatusInternalServerError)
 		return false
 	}
-	log.Printf("successful deletion from %s: %s", username, filename)
+
+	log.Printf("successful deletion from %s: %s", username, fileToDelete)
 	m := &response{
 		Message: "ok",
 	}
 	writeResponse(m, w)
+
 	return true
 }
 
