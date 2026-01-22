@@ -57,7 +57,7 @@ curl -X DELETE -u forgejo_user:forgejo_user_token https://example.com/up?hash=47
 
 - the token only needs the read:user perm for auth
 - accepts png, jpg, and probably webp
-- no response until authed
+- no response until user is authed
 - converts all images to png and compresses
 - simple `{message: string, url:string?}` object response
 - error is `{error: string}`

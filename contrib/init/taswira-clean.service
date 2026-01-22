@@ -2,10 +2,6 @@
 Description=delete old taswira uploads
 
 [Service]
-# /var/lib/taswira
-StateDirectory=taswira
-StateDirectoryMode=0750
-
 # delete images older than 30 days
 # TODO: atime? delete old unaccessed images ig
 ExecStart=/bin/find /var/lib/taswira -daystart -atime 30 -name '*.png'
