@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: Taswira API
+  description: API specification for Taswira
+  version: 1.0.0
+  license:
+    name: GNU General Public License version 3
+    url: https://opensource.org/license/gpl-3-0
+
+components:
+  schemas:
+    Response:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          description: message from the server
+        url:
+          description: usually sent in response to a successful upload
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          description: error from the server
+        url:
+          description: usually sent with a duplicate upload error
+
+servers:
+  - url: https://{server}:{port}/{endpoint}
+    variables:
+      server:
+        default: "127.0.0.1"
+      port:
+        default: "443"
+      endpoint:
+        default: "up"
+
+paths:
+  /:
+    post:
+      operationId: upload
+      summary: Upload image
+      requestBody:
+        description: "Image to upload (png, jpeg, webp, heic)"
+        content:
+          image/png: {}
+          image/jpeg: {}
+          image/webp: {}
+          image/heic: {}
+      responses:
+        "200":
+          description: Successful upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+
+        "409":
+          description: Duplicate upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "413":
+          description: Image too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "422":
+          description: Image failed during decoding or encoding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "500":
+          description: Image failed to write
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: delete
+      summary: Delete a previously uploaded image
+      parameters:
+        - name: hash
+          description: the hash of the image to delete (same as the filename without the extension)
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful deletion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+
+        "404":
+          description: Nonexistent image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "500":
+          description: Error during deletion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
