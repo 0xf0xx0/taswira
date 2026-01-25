@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"syscall"
 
+	_ "github.com/jdeng/goheif"
 	"github.com/zeebo/xxh3"
 	_ "golang.org/x/image/webp"
 )
@@ -235,6 +236,7 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 			Message: "duplicate image",
 			Url:     url,
 		}
+
 		writeError(e, w, http.StatusConflict)
 		return false
 	}
