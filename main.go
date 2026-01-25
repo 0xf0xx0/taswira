@@ -49,6 +49,7 @@ type errorResponse struct {
 	Url     string `json:"url,omitempty"`
 }
 
+const MAX_BODY = 1024 * 1024 * 256
 const version = "1.0.0"
 
 var (
@@ -201,6 +202,15 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter) bool {
+	if r.ContentLength > MAX_BODY {
+		log.Printf("ignoring image from %s: invalid Content-Length\n", username)
+		e := &errorResponse{
+			Message: fmt.Sprintf("ignoring your input (invalid Content-Length)"),
+		}
+		writeError(e, w, http.StatusUnprocessableEntity)
+		return false
+	}
+
 	uploadBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error reading image from %s: %s\n", username, err)
@@ -210,7 +220,7 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 		writeError(e, w, http.StatusUnprocessableEntity)
 		return false
 	}
-	if len(uploadBody) > 1024*1024*256 { /// 256MiB
+	if len(uploadBody) > MAX_BODY { /// 256MiB
 		e := &errorResponse{
 			Message: "image too large (>256MiB)",
 		}
