@@ -233,7 +233,7 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 		e := &errorResponse{
 			Message: fmt.Sprintf("error decoding image: %s", err),
 		}
-		writeError(e, w, http.StatusUnsupportedMediaType)
+		writeError(e, w, http.StatusUnprocessableEntity)
 		return false
 	}
 
