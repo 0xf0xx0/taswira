@@ -51,8 +51,6 @@ paths:
           image/webp: {}
           image/heic: {}
       responses:
-        "102":
-          description: Sent during processing
 
         "200":
           description: Successful upload
