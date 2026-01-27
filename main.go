@@ -202,7 +202,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter) bool {
-	if r.ContentLength > MAX_BODY {
+	if r.ContentLength > MAX_BODY || r.ContentLength < 8 {
 		log.Printf("ignoring image from %s: invalid Content-Length\n", username)
 		e := &errorResponse{
 			Message: fmt.Sprintf("ignoring your input (invalid Content-Length)"),
@@ -226,6 +226,7 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 		}
 		writeError(e, w, http.StatusRequestEntityTooLarge)
 	}
+	w.WriteHeader(http.StatusProcessing)
 	decodedImg, _, err := image.Decode(bytes.NewReader(uploadBody))
 	if err != nil {
 		log.Printf("%q\n", uploadBody[:80])
@@ -300,7 +301,13 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 		Message: "ok",
 		Url:     url,
 	}
-	writeResponse(m, w)
+	/// 200 OK cause 201 has
+	/// "The newly-created items can be returned in the body of the response message,
+	///  but must be locatable by the URL of the initiating request or by the URL in
+	///  the value of the Location header provided with the response."
+	///	 - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/201
+	/// and we dont do that
+	writeResponse(m, w, http.StatusOK)
 	return true
 }
 func deleteHandler(_, username string, r *http.Request, w http.ResponseWriter) bool {
@@ -335,7 +342,7 @@ func deleteHandler(_, username string, r *http.Request, w http.ResponseWriter) b
 	m := &response{
 		Message: "ok",
 	}
-	writeResponse(m, w)
+	writeResponse(m, w, http.StatusNoContent)
 
 	return true
 }
@@ -348,8 +355,9 @@ func checkIfImageExists(path string) bool {
 	return false
 }
 
-func writeResponse(res *response, w http.ResponseWriter) {
+func writeResponse(res *response, w http.ResponseWriter, code int) {
 	b, _ := json.Marshal(res)
+	w.WriteHeader(code)
 	w.Write(b)
 }
 
