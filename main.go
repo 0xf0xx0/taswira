@@ -141,14 +141,14 @@ func main() {
 			log.Fatalf("failed to listen on unix: %s", err)
 		}
 		http.Serve(l, nil)
-		defer func(){
-			os.Remove(UNIX_SOCKET)
-		}()
-		log.Fatal(http.ListenAndServe(fmt.Sprintf("unix://%s", UNIX_SOCKET), nil))
 	}()
 
 	// wait for exit
 	<-sigs
+
+	if UNIX_SOCKET != "" {
+		os.Remove(UNIX_SOCKET)
+	}
 }
 
 func authUser(username, token string, w http.ResponseWriter) (ok bool) {
