@@ -20,6 +20,7 @@ import (
 	"image/png"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -54,17 +55,17 @@ const version = "1.1.0"
 
 var (
 	USER_AGENT = fmt.Sprintf("taswira/v%s", version)
-	INSTANCE   = os.Getenv("INSTANCE")
-	SUBPATH    = os.Getenv("SUBPATH")
+	INSTANCE   = os.Getenv("TASWIRA_INSTANCE")
+	SUBPATH    = os.Getenv("TASWIRA_SUBPATH")
 	IMG_ROOT   = func() string {
-		env := os.Getenv("IMG_ROOT")
+		env := os.Getenv("TASWIRA_IMG_ROOT")
 		if env == "" {
 			env = "./img"
 		}
 		return env
 	}()
 	LISTEN_PORT = func() int {
-		env := os.Getenv("LISTEN_PORT")
+		env := os.Getenv("TASWIRA_LISTEN_PORT")
 		if env == "" {
 			return 6969
 		}
@@ -76,6 +77,14 @@ var (
 		/// yes this overflows, no we dont care
 		/// config your shit right lmao
 		return int(uint16(i))
+	}()
+	UNIX_SOCKET = func() string {
+		env := os.Getenv("TASWIRA_UNIX_SOCKET")
+		if env == "" {
+			env = "./taswira.sock"
+			// env = "/var/run/taswira.sock"
+		}
+		return env
 	}()
 	imgroot        *os.Root
 	authHttpClient = &http.Client{}
@@ -110,8 +119,32 @@ func main() {
 	http.HandleFunc("/", mainHandler)
 
 	go func() {
+		if LISTEN_PORT == 0 {
+			log.Println("not listening on http")
+			return
+		}
 		log.Printf("listening on http://localhost:%d\n", LISTEN_PORT)
 		log.Fatal(http.ListenAndServe(fmt.Sprintf("localhost:%d", LISTEN_PORT), nil))
+	}()
+	go func() {
+		if UNIX_SOCKET == "" {
+			log.Println("not listening on unix socket")
+			return
+		}
+		log.Printf("listening on unix://%s", UNIX_SOCKET)
+		addr, err := net.ResolveUnixAddr("unix", UNIX_SOCKET)
+		if err != nil {
+			log.Fatalf("failed to resolve unix: %s", err)
+		}
+		l, err := net.ListenUnix("unix", addr)
+		if err != nil {
+			log.Fatalf("failed to listen on unix: %s", err)
+		}
+		http.Serve(l, nil)
+		defer func(){
+			os.Remove(UNIX_SOCKET)
+		}()
+		log.Fatal(http.ListenAndServe(fmt.Sprintf("unix://%s", UNIX_SOCKET), nil))
 	}()
 
 	// wait for exit

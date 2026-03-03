@@ -7,4 +7,4 @@ user="$2"
 token="$3"
 file="$4"
 
-curl --location -Ss -X POST -u "$user:$token" "https://$endpoint" --data-binary @"$file"
+curl --location -X POST --user "$user:$token" "https://$endpoint" --data-binary @"$file"

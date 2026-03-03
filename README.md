@@ -11,15 +11,15 @@ taswira: tiny image host authed by forgejo
 ## setup
 
 - MUST be run behind a reverse proxy, it depends on one to serve the images and for X-Forwarded-Host/Host and X-Forwarded-Proto
-- `IMG_ROOT` must exist before running, this wont make dirs
+- `TASWIRA_IMG_ROOT` must exist before running, this wont make dirs
 
 ### environment variables
 
 ```sh
-INSTANCE="https://example.com" # Forgejo instance to use for auth, without trailing slash
-IMG_ROOT="/path/to/image/dir" # dir to write images to, defaults to <process cwd>/img
-SUBPATH="foo/bar/baz" # reverse proxy image subpath, without leading and trailing slash
-PORT="6969" # listening port, default 6969
+TASWIRA_INSTANCE="https://example.com" # Forgejo instance to use for auth, without trailing slash
+TASWIRA_IMG_ROOT="/path/to/image/dir" # dir to write images to, defaults to <process cwd>/img
+TASWIRA_SUBPATH="foo/bar/baz" # reverse proxy image subpath, without leading and trailing slash
+TASWIRA_PORT="6969" # listening port, default 6969
 ```
 
 ### example
@@ -27,7 +27,7 @@ PORT="6969" # listening port, default 6969
 TODO
 
 ```sh
-export SUBPATH="images"
+export TASWIRA_SUBPATH="images"
 ```
 
 ### reverse proxy structure
