@@ -3,10 +3,11 @@ taswira: tiny image host authed by forgejo
 
 env vars:
 
-	INSTANCE="https://example.com" # Forgejo instance to use for auth, without trailing slash
-	IMG_ROOT="/path/to/image/dir" # dir to write images to, defaults to <process cwd>/img
-	SUBPATH="foo/bar/baz" # reverse proxy subpath, without trailing slash
-	PORT="6969" # listening port, default 6969
+	TASWIRA_INSTANCE="https://example.com" # Forgejo instance to use for auth, without trailing slash
+	TASWIRA_IMG_ROOT="/path/to/image/dir" # dir to write images to, defaults to <process cwd>/img
+	TASWIRA_SUBPATH="foo/bar/baz" # reverse proxy subpath, without trailing slash
+	TASWIRA_LISTEN_PORT="6969" # listening port, default 6969; 0 disables
+	TASWIRA_UNIX_SOCKET="./taswira.sock" # listening socket, default <cwd>/taswira.sock
 */
 package main
 
@@ -27,19 +28,12 @@ import (
 	"strconv"
 	"syscall"
 
+	taswira "git.0xf0xx0.eth.limo/0xf0xx0/taswira/auth_wrappers"
+	"git.0xf0xx0.eth.limo/0xf0xx0/taswira/common"
 	_ "github.com/jdeng/goheif"
 	"github.com/zeebo/xxh3"
 	_ "golang.org/x/image/webp"
 )
-
-type forgejoUserResponse struct {
-	Active        bool   `json:"active"`
-	IsAdmin       bool   `json:"is_admin"`
-	Login         string `json:"login"`
-	ProhibitLogin bool   `json:"prohibit_login"`
-	Pronouns      string `json:"pronouns"`
-	Restricted    bool   `json:"restricted"`
-}
 
 type response struct {
 	Message string `json:"message"`
@@ -51,13 +45,10 @@ type errorResponse struct {
 }
 
 const MAX_BODY = 1024 * 1024 * 256
-const version = "1.1.0"
 
 var (
-	USER_AGENT = fmt.Sprintf("taswira/v%s", version)
-	INSTANCE   = os.Getenv("TASWIRA_INSTANCE")
-	SUBPATH    = os.Getenv("TASWIRA_SUBPATH")
-	IMG_ROOT   = func() string {
+	SUBPATH  = os.Getenv("TASWIRA_SUBPATH")
+	IMG_ROOT = func() string {
 		env := os.Getenv("TASWIRA_IMG_ROOT")
 		if env == "" {
 			env = "./img"
@@ -86,8 +77,7 @@ var (
 		}
 		return env
 	}()
-	imgroot        *os.Root
-	authHttpClient = &http.Client{}
+	imgroot *os.Root
 )
 
 func main() {
@@ -95,9 +85,6 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	if INSTANCE == "" {
-		log.Fatalln("no forgejo instance set for auth")
-	}
 	if SUBPATH != "" {
 		SUBPATH += "/"
 	}
@@ -105,15 +92,6 @@ func main() {
 	imgroot, err = os.OpenRoot(IMG_ROOT)
 	if err != nil {
 		log.Fatalln(err)
-	}
-
-	/// poke the instance to ensure its online
-	res, err := http.Get(INSTANCE + "/api/v1/version")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	if res.StatusCode != http.StatusOK {
-		log.Fatalf("error from backend forgejo: %s\n", res.Status)
 	}
 
 	http.HandleFunc("/", mainHandler)
@@ -152,39 +130,7 @@ func main() {
 }
 
 func authUser(username, token string, w http.ResponseWriter) (ok bool) {
-	req, _ := http.NewRequest("GET", INSTANCE+"/api/v1/user", nil)
-	req.Header.Add("Authorization", "token "+token)
-	req.Header.Add("User-Agent", USER_AGENT)
-
-	res, err := authHttpClient.Do(req)
-	if err != nil {
-		log.Printf("error sending auth request: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte{})
-		return false
-	}
-	if res.StatusCode != http.StatusOK {
-		log.Printf("error verifying user %s: %s", username, res.Status)
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte{})
-		return false
-	}
-	body, _ := io.ReadAll(res.Body)
-	b := &forgejoUserResponse{}
-	if json.Unmarshal(body, b) != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte{})
-		return false
-	}
-
-	if username != b.Login || b.ProhibitLogin || b.Restricted || !b.Active {
-		log.Printf("%s failed login\n", username)
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte{})
-		return false
-	}
-	return true
+	return
 }
 
 // handles auth and delegates to method handlers
@@ -194,6 +140,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	scheme := r.Header.Get("X-Forwarded-Proto")
 	host := r.Header.Get("X-Forwarded-Host")
+	if scheme == "" {
+		log.Print("X-Forwarded-Proto header not set")
+		return
+	}
 	if host == "" {
 		host = r.Header.Get("Host")
 	}
@@ -201,12 +151,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		log.Print("X-Forwarded-Host or Host header not set")
 		return
 	}
-	if scheme == "" {
-		log.Print("X-Forwarded-Proto header not set")
-		return
-	}
 
-	urlPfx := fmt.Sprintf("%s://%s/%s", scheme, host, SUBPATH)
+	path := fmt.Sprintf("%s://%s/%s", scheme, host, SUBPATH)
 	var handler func(urlPfx, username string, r *http.Request, w http.ResponseWriter) (ok bool)
 
 	switch r.Method {
@@ -223,28 +169,38 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !authUser(username, token, w) {
+	var auther taswira.AuthWrapper
+
+	if !auther.IsAlive() {
+		e := &errorResponse{
+			Message: "auth backend is down",
+		}
+		writeError(e, w, http.StatusBadGateway)
 		return
 	}
 
-	w.Header().Add("Server", USER_AGENT)
+	if !auther.Authenticate(username, token, w) {
+		return
+	}
 
-	if !handler(urlPfx, username, r, w) {
+	w.Header().Add("Server", common.USER_AGENT)
+
+	if !handler(path, username, r, w) {
 		return
 	}
 }
 
-func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter) bool {
+func postHandler(path, username string, r *http.Request, w http.ResponseWriter) bool {
 	if r.ContentLength > MAX_BODY || r.ContentLength < 8 {
 		log.Printf("ignoring image from %s: invalid Content-Length\n", username)
 		e := &errorResponse{
-			Message: fmt.Sprintf("ignoring your input (invalid Content-Length)"),
+			Message: "image too large (>256MiB)",
 		}
-		writeError(e, w, http.StatusUnprocessableEntity)
+		writeError(e, w, http.StatusRequestEntityTooLarge)
 		return false
 	}
 
-	uploadBody, err := io.ReadAll(r.Body)
+	uploadBody, err := io.ReadAll(io.LimitReader(r.Body, r.ContentLength))
 	if err != nil {
 		log.Printf("error reading image from %s: %s\n", username, err)
 		e := &errorResponse{
@@ -252,12 +208,6 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 		}
 		writeError(e, w, http.StatusUnprocessableEntity)
 		return false
-	}
-	if len(uploadBody) > MAX_BODY { /// 256MiB
-		e := &errorResponse{
-			Message: "image too large (>256MiB)",
-		}
-		writeError(e, w, http.StatusRequestEntityTooLarge)
 	}
 	w.WriteHeader(http.StatusProcessing)
 	decodedImg, _, err := image.Decode(bytes.NewReader(uploadBody))
@@ -271,20 +221,7 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 		return false
 	}
 
-	/// check for dupe before processing further
-	hash := xxh3.Hash128(uploadBody).Bytes()
-	filename := hex.EncodeToString(hash[:]) + ".png"
-	url := urlPfx + filename
-	if checkIfImageExists(filename) {
-		e := &errorResponse{
-			Message: "duplicate image",
-			Url:     url,
-		}
-
-		writeError(e, w, http.StatusConflict)
-		return false
-	}
-
+	/// check for dupe before saving
 	encodedImg := bytes.NewBuffer(make([]byte, 0, len(uploadBody)))
 	err = png.Encode(encodedImg, decodedImg)
 	if err != nil {
@@ -297,9 +234,9 @@ func postHandler(urlPfx, username string, r *http.Request, w http.ResponseWriter
 	}
 
 	/// verify the hash after metadata removal
-	hash = xxh3.Hash128(encodedImg.Bytes()).Bytes()
-	filename = hex.EncodeToString(hash[:]) + ".png"
-	url = urlPfx + filename
+	hash := xxh3.Hash128(encodedImg.Bytes()).Bytes()
+	filename := hex.EncodeToString(hash[:]) + ".png"
+	url := path + filename
 	if checkIfImageExists(filename) {
 		e := &errorResponse{
 			Message: "duplicate image",
@@ -380,9 +317,17 @@ func deleteHandler(_, username string, r *http.Request, w http.ResponseWriter) b
 	return true
 }
 
+var imageExistsCache = make(map[string]struct{}, 15)
+
 func checkIfImageExists(path string) bool {
+	_, ok := imageExistsCache[path]
+	if ok {
+		return ok
+	}
+
 	_, err := imgroot.Stat(path)
 	if err == nil {
+		imageExistsCache[path] = struct{}{}
 		return true
 	}
 	return false
