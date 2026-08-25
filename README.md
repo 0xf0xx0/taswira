@@ -1,8 +1,9 @@
-taswira: tiny image host authed by forgejo
+taswira: tiny image host authed by whatever you want
 
 ## features
 
-- relies on a forgejo instance for authing users
+- relies on an external service for authing users (currently supported: forgejo)
+    - service must provide auth tokens
 - handles images up to 256mib
 - handles duplicate image uploads
 - handles image deletion (also: systemd timer to delete old images)

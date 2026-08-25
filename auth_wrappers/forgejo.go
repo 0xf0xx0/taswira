@@ -59,8 +59,9 @@ func (fa *ForgejoAuth) Authenticate(username, token string, w http.ResponseWrite
 		return false
 	}
 
-	if username != b.Login || b.ProhibitLogin || b.Restricted || !b.Active {
-		log.Printf("%s failed login\n", username)
+	if b.ProhibitLogin || b.Restricted || !b.Active {
+		/// TODO: better logline
+		log.Printf("%s failed login\n")
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte{})
 		return false

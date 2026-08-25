@@ -129,10 +129,6 @@ func main() {
 	}
 }
 
-func authUser(username, token string, w http.ResponseWriter) (ok bool) {
-	return
-}
-
 // handles auth and delegates to method handlers
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header()["Date"] = nil
@@ -170,6 +166,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var auther taswira.AuthWrapper
+	/// TODO: best way to differentiate auth sources?
+	switch () {
+		case min
+	}
 
 	if !auther.IsAlive() {
 		e := &errorResponse{
